@@ -43,9 +43,10 @@ SELECT pg_kaboom('segfault');
 
 Currently defined weapons (more to come) are:
 
-- segfault :: cause a segfault in the server process
 
-- signal :: send a `SIGKILL` to the Postmaster process
+- `segfault` :: cause a segfault in the server process
+
+- `signal` :: send a `SIGKILL` to the Postmaster process
 
 Contributions welcome!  Let's get creative in testing how PostgreSQL can recover/respond to various systems meddling!
 
