@@ -61,7 +61,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		
 		kill(PostmasterPid, signal);
 	} else {
-		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op));
+		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op), errhint("must be one of 'segfault' or 'signal'"));
 	}
 
 	/* will only return false if we don't recognize the method of destruction or if something failed to fail */
