@@ -22,6 +22,30 @@ We require you to set a GUC variable `pg_kaboom.disclaimer` to a magic value in 
 $ git clone git@github.com:pgguru/pg_kaboom.git
 $ cd pg_kaboom
 $ make PG_CONFIG=path/to/pg_config && make install PG_CONFIG=path/to/pg_config
-$ psql -c 'CREATE EXTENSION pg_kaboom'
+$ psql -c 'CREATE EXTENSION pg_kaboom' -U <user> -d <database>
 ```
+
+## Usage
+
+Once this extension is installed in the database you wish to ~~destroy~~ use, you will just need to run the function `pg_kaboom(text)` with the given weapon of breakage.
+
+That said, we want to make sure that you are *really sure* you want to do these **destructive** operations.  You should **never** install this extension on a production server.  And you are **required** to issue the following per-session statement in order to do anything with this extension:
+
+```sql
+SET pg_kaboom.disclaimer = 'I can afford to lose this data and server';
+
+SELECT pg_kaboom('segfault');
+
+-- backend segfaults, exeunt
+```
+
+## Available Weapons
+
+Currently defined weapons (more to come) are:
+
+- segfault :: cause a segfault in the server process
+
+- signal :: send a `SIGKILL` to the Postmaster process
+
+Contributions welcome!  Let's get creative in testing how PostgreSQL can recover/respond to various systems meddling!
 
