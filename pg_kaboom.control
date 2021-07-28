@@ -1,0 +1,4 @@
+comment = 'Blow things up in interesting and useful^W^W ways'
+default_version = '0.0.1'
+relocatable = true
+module_pathname = '$libdir/pg_kaboom'
