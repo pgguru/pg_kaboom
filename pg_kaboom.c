@@ -7,7 +7,7 @@
 
 #include <signal.h>
 
-#define PG_KABOOM_DISCLAIMER "I can lose this data"
+#define PG_KABOOM_DISCLAIMER "I can afford to lose this data and server"
 
 static char *disclaimer;
 
