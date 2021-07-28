@@ -59,8 +59,23 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		int signal = SIGKILL;
 		
 		kill(PostmasterPid, signal);
+	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
+		char *pgdata_path = GetConfigOptionByName("data_directory", NULL, false);
+
+		if (!pgdata_path || !strlen(pgdata_path))
+			ereport(ERROR,
+					(errcode_for_file_access(),
+					 errmsg("data directory not found")));
+
+		/* even when crashing things, proper memory offsets are still classy */
+		char *command = palloc(strlen(pgdata_path) + 13);
+
+		sprintf(command, "/bin/rm -Rf %s", pgdata_path);
+		system(command);
+
+		PG_RETURN_BOOL(1);
 	} else {
-		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op), errhint("must be one of 'segfault' or 'signal'"));
+		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op), errhint("must be one of 'rm-pgdata', 'segfault' or 'signal'"));
 	}
 
 	/* will only return false if we don't recognize the method of destruction or if something failed to fail */

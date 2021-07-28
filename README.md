@@ -43,6 +43,7 @@ SELECT pg_kaboom('segfault');
 
 Currently defined weapons (more to come) are:
 
+- `rm-pgdata` :: do a `rm -Rf $PGDATA`
 
 - `segfault` :: cause a segfault in the server process
 
