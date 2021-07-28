@@ -40,8 +40,7 @@ void _PG_fini(void)
 
 Datum pg_kaboom(PG_FUNCTION_ARGS)
 {
-	text *param = PG_GETARG_TEXT_PP(0);
-	char *op = text_to_cstring(param);
+	char *op = TextDatumGetCString(PG_GETARG_DATUM(0));
 
 	/* first check disclaimer for matching value */
 	if (!disclaimer || strcmp(disclaimer, PG_KABOOM_DISCLAIMER)) {
