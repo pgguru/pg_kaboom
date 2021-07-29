@@ -12,6 +12,7 @@
 #define PG_KABOOM_DISCLAIMER "I can afford to lose this data and server"
 
 static char *disclaimer;
+static bool execute = false;
 
 static void validate_we_can_blow_up_things();
 static char *get_pgdata_path();
@@ -37,6 +38,15 @@ void _PG_init(void)
 							   "",
 							   PGC_USERSET, 0,
 							   NULL, NULL, NULL);
+
+	DefineCustomBoolVariable("pg_kaboom.execute",
+							   gettext_noop("Whether to actually run the commands that are generated"),
+							   NULL,
+							   &execute,
+							   0,
+							   PGC_USERSET, 0,
+							   NULL, NULL, NULL);
+
 }
 
 void _PG_fini(void)
