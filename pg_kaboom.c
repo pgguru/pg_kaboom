@@ -80,6 +80,12 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 }
 
 static void validate_we_can_blow_up_things() {
+#ifdef WIN32
+	/* bail out on windows */
+	ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("function not supported on Windows (aren't things already broken enough?)")));
+#endif
+
 	/* check that we are running as a superuser */
 	if (!session_auth_is_superuser)
 		ereport(ERROR,
