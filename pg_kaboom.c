@@ -12,6 +12,7 @@
 static char *disclaimer;
 
 static void validate_we_can_blow_up_things();
+static char *get_pgdata_path();
 
 PG_MODULE_MAGIC;
 
@@ -43,6 +44,7 @@ void _PG_fini(void)
 Datum pg_kaboom(PG_FUNCTION_ARGS)
 {
 	char *op = TextDatumGetCString(PG_GETARG_DATUM(0));
+	char *pgdata_path = get_pgdata_path();
 
 	/* special gating function check; will abort if everything isn't allowed */
 	validate_we_can_blow_up_things();
@@ -57,13 +59,6 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		
 		kill(PostmasterPid, signal);
 	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
-		char *pgdata_path = GetConfigOptionByName("data_directory", NULL, false);
-
-		if (!pgdata_path || !strlen(pgdata_path))
-			ereport(ERROR,
-					(errcode_for_file_access(),
-					 errmsg("data directory not found")));
-
 		/* even when crashing things, proper memory offsets are still classy */
 		char *command = palloc(strlen(pgdata_path) + 13);
 
@@ -99,3 +94,15 @@ static void validate_we_can_blow_up_things() {
 				 errmsg("for safety, pg_kaboom.disclaimer must be explicitly set to '%s'",
 						PG_KABOOM_DISCLAIMER)));
 }
+
+static char *get_pgdata_path() {
+	char *pgdata_path = GetConfigOptionByName("data_directory", NULL, false);
+
+	if (!pgdata_path || !strlen(pgdata_path))
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("data directory not found")));
+
+	return pgdata_path;
+}
+
