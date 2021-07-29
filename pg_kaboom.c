@@ -11,6 +11,8 @@
 
 static char *disclaimer;
 
+static void validate_we_can_blow_up_things();
+
 PG_MODULE_MAGIC;
 
 void _PG_init(void);
@@ -42,13 +44,8 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 {
 	char *op = TextDatumGetCString(PG_GETARG_DATUM(0));
 
-	/* first check disclaimer for matching value */
-	if (!disclaimer || strcmp(disclaimer, PG_KABOOM_DISCLAIMER)) {
-		ereport(ERROR,
-				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 errmsg("for safety, pg_kaboom.disclaimer must be explicitly set to '%s'",
-						PG_KABOOM_DISCLAIMER)));
-	}
+	/* special gating function check; will abort if everything isn't allowed */
+	validate_we_can_blow_up_things();
 
 	/* now check how we want to blow things up ... */
 	
@@ -80,4 +77,19 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 
 	/* will only return false if we don't recognize the method of destruction or if something failed to fail */
 	PG_RETURN_BOOL(0);
+}
+
+static void validate_we_can_blow_up_things() {
+	/* check that we are running as a superuser */
+	if (!session_auth_is_superuser)
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("must run this function as a superuser")));
+
+	/* check disclaimer for matching value */
+	if (!disclaimer || strcmp(disclaimer, PG_KABOOM_DISCLAIMER))
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("for safety, pg_kaboom.disclaimer must be explicitly set to '%s'",
+						PG_KABOOM_DISCLAIMER)));
 }
