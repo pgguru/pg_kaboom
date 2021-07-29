@@ -18,6 +18,7 @@ static bool execute = false;
 static void validate_we_can_blow_up_things();
 static void load_pgdata_path();
 static void fill_disk_at_path(char *path, char *subpath);
+static void command_with_path(char *command, char *path);
 
 PG_MODULE_MAGIC;
 
@@ -79,12 +80,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 
 		kill(PostmasterPid, signal);
 	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
-		/* even when crashing things, proper memory offsets are still classy */
-		char *command = palloc(strlen(pgdata_path) + 13);
-
-		sprintf(command, "/bin/rm -Rf %s", pgdata_path);
-		system(command);
-
+		command_with_path("/bin/rm -Rf %s", pgdata_path);
 		PG_RETURN_BOOL(1);
 	} else {
 		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op),
@@ -150,11 +146,26 @@ static void fill_disk_at_path(char *path, char *subpath) {
 				(errcode_for_file_access(),
 				 errmsg("'%s' is not a writable directory", path)));
 
+	command_with_path(fill_disk_format, path);
+}
+
+
+/* helper to run a command with a path substitute */
+static void command_with_path(char *template, char *path) {
+
+	/* sanity-check our path here ... */
+	if (!path || !*path)
+		ereport(ERROR, errmsg("can't run with empty path"));
+
+	if (path[0] != '/')
+		ereport(ERROR, errmsg("cowardly not running with relative path"));
+
 	/* even when crashing things, proper memory offsets are still classy; note we do waste a byte or
 	   two (with '%s'), which when filling up entire disks is a venial sin at best */
-	char *command = palloc(strlen(path) + sizeof(fill_disk_format));
 
-	sprintf(command, fill_disk_format, path);
-	ereport(NOTICE, errmsg("running command: '%s'", command));
-	system(command);
+	char *command = palloc(strlen(template) + strlen(path));
+	sprintf(command, template, path);
+	ereport(NOTICE, errmsg("%srunning command: '%s'", (execute ? "" : "(dry-run) "), command));
+	if (execute)
+		system(command);
 }
