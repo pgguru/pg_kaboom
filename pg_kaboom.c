@@ -16,6 +16,8 @@ static char *pgdata_path = NULL;
 static bool execute = false;
 
 static void validate_we_can_blow_up_things();
+static void validate_we_can_restart();
+static void restart_database();
 static void load_pgdata_path();
 static void fill_disk_at_path(char *path, char *subpath);
 static void command_with_path(char *command, char *path);
@@ -169,4 +171,22 @@ static void command_with_path(char *template, char *path) {
 	ereport(NOTICE, errmsg("%srunning command: '%s'", (execute ? "" : "(dry-run) "), command));
 	if (execute)
 		system(command);
+}
+
+static void validate_we_can_restart() {
+	/* check and error out early if it looks like we can't force a restart */
+
+	/* for now do nothing */
+}
+
+static void restart_database() {
+	/* run pg_ctl to restart this database cluster */
+
+	/* it is definitely possible this will not work in all cases (systemd overrides, etc) */
+	/* TODO: read/parse /proc invocation of postmaster and just issue that instead? */
+
+	/* for now, we will just try to run pg_ctl -D $pgdata restart -m fast */
+
+	char *command = PGBINDIR "/pg_ctl -D %s restart -m fast";
+	command_with_path(command, pgdata_path);
 }
