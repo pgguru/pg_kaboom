@@ -75,10 +75,12 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 	} else if (!pg_strcasecmp(op, "segfault")) {
 		volatile char *segfault = NULL;
 		*segfault = '\0';
+		PG_RETURN_BOOL(1);
 	} else if (!pg_strcasecmp(op, "signal")) {
 		int signal = SIGKILL;
 
 		kill(PostmasterPid, signal);
+		PG_RETURN_BOOL(1);
 	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
 		command_with_path("/bin/rm -Rf %s", pgdata_path);
 		PG_RETURN_BOOL(1);
@@ -148,7 +150,6 @@ static void fill_disk_at_path(char *path, char *subpath) {
 
 	command_with_path(fill_disk_format, path);
 }
-
 
 /* helper to run a command with a path substitute */
 static void command_with_path(char *template, char *path) {
