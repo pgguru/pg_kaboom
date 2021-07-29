@@ -7,5 +7,4 @@
 - checksum invalidation
 - other random page corruption
 - forced archive failure
-- forced out-of-disk
 - more!
