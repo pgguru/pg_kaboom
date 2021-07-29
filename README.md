@@ -47,6 +47,8 @@ Currently defined weapons (more to come) are:
 
 - `fill-pgwal` :: allocate all of the space inside the $PGDATA/pg_wal directory
 
+- `restart` :: do a fast restart of the server
+
 - `rm-pgdata` :: do a `rm -Rf $PGDATA`
 
 - `segfault` :: cause a segfault in the server process

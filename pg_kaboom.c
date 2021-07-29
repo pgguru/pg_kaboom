@@ -74,6 +74,10 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 	} else if (!pg_strcasecmp(op, "fill-pgwal")) {
 		fill_disk_at_path(pgdata_path, "pg_wal");
 		PG_RETURN_BOOL(1);
+	} else if (!pg_strcasecmp(op, "restart")) {
+		validate_we_can_restart();
+		restart_database();
+		PG_RETURN_BOOL(1);
 	} else if (!pg_strcasecmp(op, "segfault")) {
 		volatile char *segfault = NULL;
 		*segfault = '\0';
