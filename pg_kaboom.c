@@ -50,7 +50,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 	/* now check how we want to blow things up ... */
 	
 	if (!pg_strcasecmp(op, "segfault")) {
-		char *segfault = NULL;
+		volatile char *segfault = NULL;
 		*segfault = '\0';
 	} else if (!pg_strcasecmp(op, "signal")) {
 		int signal = SIGKILL;
