@@ -205,7 +205,7 @@ static void restart_database() {
 	/* TODO: read/parse /proc invocation of postmaster and just issue that instead? */
 
 	/* for now, we will just try to run pg_ctl -D $pgdata restart -m fast */
-	char *command = "nohup -- bash -c 'kill -9 %s;" PGBINDIR "/pg_ctl -D %s start' &";
+	char *command = "bash -c 'kill -9 %s;" PGBINDIR "/pg_ctl -D %s start -l /tmp/pg_kaboom_startup.log'";
 	char postmaster_pid[10];
 
 	snprintf(postmaster_pid, 10, "%d", PostmasterPid);
