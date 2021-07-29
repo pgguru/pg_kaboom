@@ -12,10 +12,11 @@
 #define PG_KABOOM_DISCLAIMER "I can afford to lose this data and server"
 
 static char *disclaimer;
+static char *pgdata_path = NULL;
 static bool execute = false;
 
 static void validate_we_can_blow_up_things();
-static char *get_pgdata_path();
+static void load_pgdata_path();
 static void fill_disk_at_path(char *path, char *subpath);
 
 PG_MODULE_MAGIC;
@@ -47,6 +48,7 @@ void _PG_init(void)
 							   PGC_USERSET, 0,
 							   NULL, NULL, NULL);
 
+	load_pgdata_path();
 }
 
 void _PG_fini(void)
@@ -57,7 +59,6 @@ void _PG_fini(void)
 Datum pg_kaboom(PG_FUNCTION_ARGS)
 {
 	char *op = TextDatumGetCString(PG_GETARG_DATUM(0));
-	char *pgdata_path = get_pgdata_path();
 
 	/* special gating function check; will abort if everything isn't allowed */
 	validate_we_can_blow_up_things();
@@ -75,7 +76,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		*segfault = '\0';
 	} else if (!pg_strcasecmp(op, "signal")) {
 		int signal = SIGKILL;
-		
+
 		kill(PostmasterPid, signal);
 	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
 		/* even when crashing things, proper memory offsets are still classy */
@@ -115,15 +116,17 @@ static void validate_we_can_blow_up_things() {
 						PG_KABOOM_DISCLAIMER)));
 }
 
-static char *get_pgdata_path() {
-	char *pgdata_path = GetConfigOptionByName("data_directory", NULL, false);
+void load_pgdata_path() {
+	if (!pgdata_path) {
+		MemoryContext oldcontext = MemoryContextSwitchTo(TopMemoryContext);
+		pgdata_path = pstrdup(GetConfigOptionByName("data_directory", NULL, false));
+		MemoryContextSwitchTo(oldcontext);
 
-	if (!pgdata_path || !strlen(pgdata_path))
-		ereport(ERROR,
-				(errcode_for_file_access(),
-				 errmsg("data directory not found")));
-
-	return pgdata_path;
+		if (!pgdata_path || !strlen(pgdata_path))
+			ereport(ERROR,
+					(errcode_for_file_access(),
+					 errmsg("data directory not found")));
+	}
 }
 
 #define fill_disk_format "/bin/dd if=/dev/zero of=%s/pg_kaboom_space_filler bs=1m"
