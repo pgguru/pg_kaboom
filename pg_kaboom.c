@@ -4,6 +4,7 @@
 #include "miscadmin.h"
 #include "utils/guc.h"
 #include "utils/builtins.h"
+#include "storage/ipc.h"
 
 #include <signal.h>
 #include <unistd.h>
@@ -20,7 +21,8 @@ static void validate_we_can_restart();
 static void restart_database();
 static void load_pgdata_path();
 static void fill_disk_at_path(char *path, char *subpath);
-static void command_with_path(char *command, char *path, boolean detach);
+static void command_with_path(char *command, char *path, bool detach);
+static void command_with_path_internal(char *command, char *arg1, char *arg2, bool detach);
 
 PG_MODULE_MAGIC;
 
@@ -158,8 +160,7 @@ static void fill_disk_at_path(char *path, char *subpath) {
 }
 
 /* helper to run a command with a path substitute */
-static void command_with_path(char *template, char *path, boolean detach) {
-
+static void command_with_path(char *template, char *path, bool detach) {
 	/* sanity-check our path here ... */
 	if (!path || !*path)
 		ereport(ERROR, errmsg("can't run with empty path"));
@@ -167,19 +168,27 @@ static void command_with_path(char *template, char *path, boolean detach) {
 	if (path[0] != '/')
 		ereport(ERROR, errmsg("cowardly not running with relative path"));
 
+	command_with_path_internal(template, path, "", detach);
+}
+
+static void command_with_path_internal(char *template, char *arg1, char *arg2, bool detach) {
 	/* even when crashing things, proper memory offsets are still classy; note we do waste a byte or
 	   two (with '%s'), which when filling up entire disks is a venial sin at best */
 
-	char *command = palloc(strlen(template) + strlen(path));
-	sprintf(command, template, path);
+	char *command = palloc(strlen(template) + strlen(arg1) + strlen(arg2));
+	sprintf(command, template, arg1, arg2);
 	ereport(NOTICE, errmsg("%srunning command: '%s'", (execute ? "" : "(dry-run) "), command));
 	if (execute) {
 		if (detach) {
-			/* do whatever we need to detach as a new process */
+			/* this is yucky, and probably not that good, however it appears to work */
+			daemon(0,0);		/* deprecated warnings, but appears to function */
+
+			if (fork())			/* extra fork needed due to only one level of fork() + setsid() */
+				proc_exit(0);	/* exit cleanly for pg -- such that it matters */
+			setsid();
 			system(command);
-		} else {
+		} else
 			system(command);
-		}
 	}
 }
 
@@ -196,7 +205,9 @@ static void restart_database() {
 	/* TODO: read/parse /proc invocation of postmaster and just issue that instead? */
 
 	/* for now, we will just try to run pg_ctl -D $pgdata restart -m fast */
+	char *command = "nohup -- bash -c 'kill -9 %s;" PGBINDIR "/pg_ctl -D %s start' &";
+	char postmaster_pid[10];
 
-	char *command = PGBINDIR "/pg_ctl -D %s restart -m fast";
-	command_with_path(command, pgdata_path, true);
+	snprintf(postmaster_pid, 10, "%d", PostmasterPid);
+	command_with_path_internal(command, postmaster_pid, pgdata_path, true);
 }
