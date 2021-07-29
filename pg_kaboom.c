@@ -20,7 +20,7 @@ static void validate_we_can_restart();
 static void restart_database();
 static void load_pgdata_path();
 static void fill_disk_at_path(char *path, char *subpath);
-static void command_with_path(char *command, char *path);
+static void command_with_path(char *command, char *path, boolean detach);
 
 PG_MODULE_MAGIC;
 
@@ -88,7 +88,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		kill(PostmasterPid, signal);
 		PG_RETURN_BOOL(1);
 	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
-		command_with_path("/bin/rm -Rf %s", pgdata_path);
+		command_with_path("/bin/rm -Rf %s", pgdata_path, false);
 		PG_RETURN_BOOL(1);
 	} else {
 		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op),
@@ -154,11 +154,11 @@ static void fill_disk_at_path(char *path, char *subpath) {
 				(errcode_for_file_access(),
 				 errmsg("'%s' is not a writable directory", path)));
 
-	command_with_path(fill_disk_format, path);
+	command_with_path(fill_disk_format, path, false);
 }
 
 /* helper to run a command with a path substitute */
-static void command_with_path(char *template, char *path) {
+static void command_with_path(char *template, char *path, boolean detach) {
 
 	/* sanity-check our path here ... */
 	if (!path || !*path)
@@ -173,8 +173,14 @@ static void command_with_path(char *template, char *path) {
 	char *command = palloc(strlen(template) + strlen(path));
 	sprintf(command, template, path);
 	ereport(NOTICE, errmsg("%srunning command: '%s'", (execute ? "" : "(dry-run) "), command));
-	if (execute)
-		system(command);
+	if (execute) {
+		if (detach) {
+			/* do whatever we need to detach as a new process */
+			system(command);
+		} else {
+			system(command);
+		}
+	}
 }
 
 static void validate_we_can_restart() {
@@ -192,5 +198,5 @@ static void restart_database() {
 	/* for now, we will just try to run pg_ctl -D $pgdata restart -m fast */
 
 	char *command = PGBINDIR "/pg_ctl -D %s restart -m fast";
-	command_with_path(command, pgdata_path);
+	command_with_path(command, pgdata_path, true);
 }
