@@ -94,7 +94,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		PG_RETURN_BOOL(1);
 	} else {
 		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op),
-				errhint("must be one of 'fill-pgdata', 'fill-pgwal', 'rm-pgdata', 'segfault' or 'signal'"));
+				errhint("must be one of 'fill-pgdata', 'fill-pgwal', 'restart', 'rm-pgdata', 'segfault' or 'signal'"));
 	}
 
 	/* will only return false if we don't recognize the method of destruction or if something failed to fail */
