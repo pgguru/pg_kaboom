@@ -72,7 +72,21 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 
 	/* now check how we want to blow things up ... */
 
-	if (!pg_strcasecmp(op, "fill-pgdata")) {
+	if (!pg_strcasecmp(op, "fill-log")) {
+		char *log_destination = GetConfigOptionByName("log_destination", NULL, false);
+		char *log_directory = GetConfigOptionByName("log_directory", NULL, false);
+
+		if (pg_strcasecmp(log_destination, "stderr") || !*log_directory)
+			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+							errmsg("can only fill up log_directory if stderr and set")));
+
+		/* if an absolute path, just use that, otherwise append to the data directory */
+		if (*log_directory == '/')
+			fill_disk_at_path(log_directory, NULL);
+		else
+			fill_disk_at_path(pgdata_path, log_directory);
+		PG_RETURN_BOOL(1);
+	} else if (!pg_strcasecmp(op, "fill-pgdata")) {
 		fill_disk_at_path(pgdata_path, NULL);
 		PG_RETURN_BOOL(1);
 	} else if (!pg_strcasecmp(op, "fill-pgwal")) {
@@ -97,7 +111,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		PG_RETURN_BOOL(1);
 	} else {
 		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op),
-				errhint("must be one of 'fill-pgdata', 'fill-pgwal', 'restart', 'rm-pgdata', 'segfault', 'signal' or 'xact-wrap'"));
+				errhint("must be one of 'fill-log', 'fill-pgdata', 'fill-pgwal', 'restart', 'rm-pgdata', 'segfault', 'signal' or 'xact-wrap'"));
 	}
 
 	/* will only return false if we don't recognize the method of destruction or if something failed to fail */

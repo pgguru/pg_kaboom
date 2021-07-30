@@ -43,6 +43,8 @@ SELECT pg_kaboom('segfault');
 
 Currently defined weapons (more to come) are:
 
+- `fill-log` :: allocate all of the space inside the logs directory
+
 - `fill-pgdata` :: allocate all of the space inside the $PGDATA directory
 
 - `fill-pgwal` :: allocate all of the space inside the $PGDATA/pg_wal directory
