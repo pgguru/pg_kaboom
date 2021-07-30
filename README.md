@@ -33,7 +33,7 @@ That said, we want to make sure that you are *really sure* you want to do these 
 
 ```sql
 SET pg_kaboom.disclaimer = 'I can afford to lose this data and server';
-
+SET pg_kaboom.execute = on;  -- required for shell command-based running; additional safety value.  Not all weapons respect this.
 SELECT pg_kaboom('segfault');
 
 -- backend segfaults, exeunt
@@ -47,11 +47,11 @@ Currently defined weapons (more to come) are:
 
 - `fill-pgwal` :: allocate all of the space inside the $PGDATA/pg_wal directory
 
-- `restart` :: do a fast restart of the server
+- `restart` :: do an immediate restart of the server
 
 - `rm-pgdata` :: do a `rm -Rf $PGDATA`
 
-- `segfault` :: cause a segfault in the server process
+- `segfault` :: cause a segfault in the running backend process
 
 - `signal` :: send a `SIGKILL` to the Postmaster process
 
