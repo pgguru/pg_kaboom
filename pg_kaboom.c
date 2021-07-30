@@ -94,9 +94,12 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
 		command_with_path("/bin/rm -Rf %s", pgdata_path, false);
 		PG_RETURN_BOOL(1);
+	} else if (!pg_strcasecmp(op, "xact-wrap")) {
+		force_setting_and_restart("autovacuum_freeze_max_age","100000");
+		PG_RETURN_BOOL(1);
 	} else {
 		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op),
-				errhint("must be one of 'fill-pgdata', 'fill-pgwal', 'restart', 'rm-pgdata', 'segfault' or 'signal'"));
+				errhint("must be one of 'fill-pgdata', 'fill-pgwal', 'restart', 'rm-pgdata', 'segfault', 'signal' or 'xact-wrap'"));
 	}
 
 	/* will only return false if we don't recognize the method of destruction or if something failed to fail */

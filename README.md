@@ -55,5 +55,7 @@ Currently defined weapons (more to come) are:
 
 - `signal` :: send a `SIGKILL` to the Postmaster process
 
+- `xact-wrap` :: force the database to run an xact-wraparound vacuum
+
 Contributions welcome!  Let's get creative in testing how PostgreSQL can recover/respond to various systems meddling!
 
