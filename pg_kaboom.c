@@ -3,6 +3,7 @@
 #include "funcapi.h"
 #include "miscadmin.h"
 #include "utils/guc.h"
+#include "tcop/tcopprot.h"
 #include "utils/builtins.h"
 #include "storage/ipc.h"
 
@@ -23,6 +24,7 @@ static void load_pgdata_path();
 static void fill_disk_at_path(char *path, char *subpath);
 static void command_with_path(char *command, char *path, bool detach);
 static void command_with_path_internal(char *command, char *arg1, char *arg2, bool detach);
+static void force_setting_and_restart(char *setting, char *value);
 
 PG_MODULE_MAGIC;
 
@@ -210,4 +212,50 @@ static void restart_database() {
 
 	snprintf(postmaster_pid, 10, "%d", PostmasterPid);
 	command_with_path_internal(command, postmaster_pid, pgdata_path, true);
+}
+
+static void force_setting_and_restart(char *setting, char *value) {
+	validate_we_can_restart();
+
+	/* tried using ALTER SYSTEM directly via SPI, but won't run in a function block */
+	/* so we are trying to hack the parser and invoke directly */
+
+	char sql[255];
+	snprintf(sql, 255, "ALTER SYSTEM SET %s = %s", setting, value);
+
+	List *raw_parsetree_list = pg_parse_query((const char*)sql);
+	ListCell *lc1;
+
+	if (raw_parsetree_list && list_length(raw_parsetree_list) == 1) {
+		/* foreach(lc, parsed) { */
+		/* 	AlterSystemStmt *alter = lfirst_node(AlterSystemStmt, lc); */
+		/* 	AlterSystemSetConfigFile(alter); */
+		/* 	restart_database(); */
+		/* } */
+		foreach(lc1, raw_parsetree_list) {
+			RawStmt    *parsetree = lfirst_node(RawStmt, lc1);
+			List	   *stmt_list;
+			ListCell   *lc2;
+
+			stmt_list = pg_analyze_and_rewrite(parsetree,
+											   sql,
+											   NULL,
+											   0,
+											   NULL);
+			stmt_list = pg_plan_queries(stmt_list, sql, CURSOR_OPT_PARALLEL_OK, NULL);
+
+			foreach(lc2, stmt_list) {
+				PlannedStmt *stmt = lfirst_node(PlannedStmt, lc2);
+				Node *node = stmt->utilityStmt;
+
+				AlterSystemSetConfigFile((AlterSystemStmt*)node);
+				sleep(1);
+				restart_database();
+			}
+		}
+	} else {
+		ereport(ERROR,
+				(errcode(ERRCODE_SYNTAX_ERROR),
+				 errmsg("error running ALTER SYSTEM")));
+	}
 }
