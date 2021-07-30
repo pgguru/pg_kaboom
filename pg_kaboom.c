@@ -230,31 +230,11 @@ static void force_setting_and_restart(char *setting, char *value) {
 	raw_parsetree_list = pg_parse_query((const char*)sql);
 
 	if (raw_parsetree_list && list_length(raw_parsetree_list) == 1) {
-		/* foreach(lc, parsed) { */
-		/* 	AlterSystemStmt *alter = lfirst_node(AlterSystemStmt, lc); */
-		/* 	AlterSystemSetConfigFile(alter); */
-		/* 	restart_database(); */
-		/* } */
 		foreach(lc1, raw_parsetree_list) {
 			RawStmt    *parsetree = lfirst_node(RawStmt, lc1);
-			List	   *stmt_list;
-			ListCell   *lc2;
-
-			stmt_list = pg_analyze_and_rewrite(parsetree,
-											   sql,
-											   NULL,
-											   0,
-											   NULL);
-			stmt_list = pg_plan_queries(stmt_list, sql, CURSOR_OPT_PARALLEL_OK, NULL);
-
-			foreach(lc2, stmt_list) {
-				PlannedStmt *stmt = lfirst_node(PlannedStmt, lc2);
-				Node *node = stmt->utilityStmt;
-
-				AlterSystemSetConfigFile((AlterSystemStmt*)node);
-				sleep(1);
-				restart_database();
-			}
+			AlterSystemSetConfigFile((AlterSystemStmt*)parsetree->stmt);
+			sleep(1);
+			restart_database();
 		}
 	} else {
 		ereport(ERROR,
