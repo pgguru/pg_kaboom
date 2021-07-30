@@ -184,14 +184,14 @@ static void command_with_path_internal(char *template, char *arg1, char *arg2, b
 	if (execute) {
 		if (detach) {
 			/* this is yucky, and probably not that good, however it appears to work */
-			(void)daemon(0,0);		/* deprecated warnings, but appears to function */
+			daemon(0,0);		/* deprecated warnings, but appears to function */
 
 			if (fork())			/* extra fork needed due to only one level of fork() + setsid() */
 				proc_exit(0);	/* exit cleanly for pg -- such that it matters */
 			setsid();
-			(void)system(command);
+			system(command);
 		} else
-			(void)system(command);
+			system(command);
 	}
 }
 
