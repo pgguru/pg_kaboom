@@ -87,9 +87,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		*segfault = '\0';
 		PG_RETURN_BOOL(1);
 	} else if (!pg_strcasecmp(op, "signal")) {
-		int signal = SIGKILL;
-
-		kill(PostmasterPid, signal);
+		kill(PostmasterPid, SIGKILL);
 		PG_RETURN_BOOL(1);
 	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
 		command_with_path("/bin/rm -Rf %s", pgdata_path, false);
@@ -127,7 +125,7 @@ static void validate_we_can_blow_up_things() {
 						PG_KABOOM_DISCLAIMER)));
 }
 
-void load_pgdata_path() {
+static void load_pgdata_path() {
 	if (!pgdata_path) {
 		MemoryContext oldcontext = MemoryContextSwitchTo(TopMemoryContext);
 		pgdata_path = pstrdup(GetConfigOptionByName("data_directory", NULL, false));
@@ -143,6 +141,7 @@ void load_pgdata_path() {
 #define fill_disk_format "/bin/dd if=/dev/zero of=%s/pg_kaboom_space_filler bs=1m"
 static void fill_disk_at_path(char *path, char *subpath) {
 	/* we control the callers, so path will always be non-null */
+	struct stat buf;
 
 	/* if subpath is set, append to original path */
 	if (subpath && *subpath) {
@@ -155,7 +154,6 @@ static void fill_disk_at_path(char *path, char *subpath) {
 	}
 
 	/* ensure path is an actual directory */
-	struct stat buf;
 	if (stat(path, &buf) < 0 || !S_ISDIR(buf.st_mode) || access(path, W_OK) < 0)
         ereport(ERROR,
 				(errcode_for_file_access(),
@@ -186,14 +184,14 @@ static void command_with_path_internal(char *template, char *arg1, char *arg2, b
 	if (execute) {
 		if (detach) {
 			/* this is yucky, and probably not that good, however it appears to work */
-			daemon(0,0);		/* deprecated warnings, but appears to function */
+			(void)daemon(0,0);		/* deprecated warnings, but appears to function */
 
 			if (fork())			/* extra fork needed due to only one level of fork() + setsid() */
 				proc_exit(0);	/* exit cleanly for pg -- such that it matters */
 			setsid();
-			system(command);
+			(void)system(command);
 		} else
-			system(command);
+			(void)system(command);
 	}
 }
 
@@ -218,16 +216,18 @@ static void restart_database() {
 }
 
 static void force_setting_and_restart(char *setting, char *value) {
+	char sql[255];
+	List *raw_parsetree_list;
+	ListCell *lc1;
+
 	validate_we_can_restart();
 
 	/* tried using ALTER SYSTEM directly via SPI, but won't run in a function block */
 	/* so we are trying to hack the parser and invoke directly */
 
-	char sql[255];
 	snprintf(sql, 255, "ALTER SYSTEM SET %s = %s", setting, value);
 
-	List *raw_parsetree_list = pg_parse_query((const char*)sql);
-	ListCell *lc1;
+	raw_parsetree_list = pg_parse_query((const char*)sql);
 
 	if (raw_parsetree_list && list_length(raw_parsetree_list) == 1) {
 		/* foreach(lc, parsed) { */
