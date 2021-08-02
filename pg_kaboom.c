@@ -24,7 +24,7 @@ static void load_pgdata_path();
 static void fill_disk_at_path(char *path, char *subpath);
 static void command_with_path(char *command, char *path, bool detach);
 static void command_with_path_internal(char *command, char *arg1, char *arg2, bool detach);
-static void force_setting_and_restart(char *setting, char *value);
+static void force_settings_and_restart(char **setting, char **value);
 
 PG_MODULE_MAGIC;
 
@@ -107,7 +107,10 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 		command_with_path("/bin/rm -Rf %s", pgdata_path, false);
 		PG_RETURN_BOOL(1);
 	} else if (!pg_strcasecmp(op, "xact-wrap")) {
-		force_setting_and_restart("autovacuum_freeze_max_age","100000");
+		char *settings[] = { "autovacuum_freeze_max_age", NULL };
+		char *values[] = { "100000", NULL };
+
+		force_settings_and_restart(settings, values);
 		PG_RETURN_BOOL(1);
 	} else {
 		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op),
@@ -229,30 +232,39 @@ static void restart_database() {
 	command_with_path_internal(command, postmaster_pid, pgdata_path, true);
 }
 
-static void force_setting_and_restart(char *setting, char *value) {
+static void force_settings_and_restart(char **settings, char **values) {
 	char sql[255];
 	List *raw_parsetree_list;
 	ListCell *lc1;
 
 	validate_we_can_restart();
 
-	/* tried using ALTER SYSTEM directly via SPI, but won't run in a function block */
-	/* so we are trying to hack the parser and invoke directly */
+	while (*settings && *values) {
+		char *setting = settings[0];
+		char *value = values[0];
 
-	snprintf(sql, 255, "ALTER SYSTEM SET %s = %s", setting, value);
+		settings++;
+		values++;
 
-	raw_parsetree_list = pg_parse_query((const char*)sql);
+		/* tried using ALTER SYSTEM directly via SPI, but won't run in a function block */
+		/* so we are trying to hack the parser and invoke directly */
 
-	if (raw_parsetree_list && list_length(raw_parsetree_list) == 1) {
-		foreach(lc1, raw_parsetree_list) {
-			RawStmt    *parsetree = lfirst_node(RawStmt, lc1);
-			AlterSystemSetConfigFile((AlterSystemStmt*)parsetree->stmt);
-			sleep(1);
-			restart_database();
+		snprintf(sql, 255, "ALTER SYSTEM SET %s = %s", setting, value);
+
+		raw_parsetree_list = pg_parse_query((const char*)sql);
+
+		if (raw_parsetree_list && list_length(raw_parsetree_list) == 1) {
+			foreach(lc1, raw_parsetree_list) {
+				RawStmt    *parsetree = lfirst_node(RawStmt, lc1);
+				AlterSystemSetConfigFile((AlterSystemStmt*)parsetree->stmt);
+			}
+		} else {
+			ereport(ERROR,
+					(errcode(ERRCODE_SYNTAX_ERROR),
+					 errmsg("error running ALTER SYSTEM")));
 		}
-	} else {
-		ereport(ERROR,
-				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("error running ALTER SYSTEM")));
 	}
+
+	sleep(1);
+	restart_database();
 }
