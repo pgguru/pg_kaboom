@@ -25,6 +25,7 @@ static void fill_disk_at_path(char *path, char *subpath);
 static void command_with_path(char *command, char *path, bool detach);
 static void command_with_path_internal(char *command, char *arg1, char *arg2, bool detach);
 static void force_settings_and_restart(char **setting, char **value);
+static char *quoted_string(char * setting);
 
 PG_MODULE_MAGIC;
 
@@ -267,4 +268,12 @@ static void force_settings_and_restart(char **settings, char **values) {
 
 	sleep(1);
 	restart_database();
+}
+
+static char *quoted_string (char *setting) {
+	size_t size = strlen(setting) + 3;
+	char *qstring = palloc(size); /* start quote, end quote, newline */
+	snprintf(qstring, size, "'%s'", setting);
+
+	return qstring;
 }
