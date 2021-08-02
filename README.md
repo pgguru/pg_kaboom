@@ -43,6 +43,8 @@ SELECT pg_kaboom('segfault');
 
 Currently defined weapons (more to come) are:
 
+- `break-archive` :: install a broken `archive_command` and force a restart
+
 - `fill-log` :: allocate all of the space inside the logs directory
 
 - `fill-pgdata` :: allocate all of the space inside the $PGDATA directory

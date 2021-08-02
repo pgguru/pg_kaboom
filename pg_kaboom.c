@@ -48,6 +48,14 @@ void _PG_init(void)
 							   PGC_USERSET, 0,
 							   NULL, NULL, NULL);
 
+	DefineCustomStringVariable("pg_kaboom.saved_archive_command",
+							   gettext_noop("Storage for the old archive_command if we have replaced this one"),
+							   NULL,
+							   &disclaimer,
+							   "",
+							   PGC_USERSET, 0,
+							   NULL, NULL, NULL);
+
 	DefineCustomBoolVariable("pg_kaboom.execute",
 							   gettext_noop("Whether to actually run the commands that are generated"),
 							   NULL,
@@ -73,7 +81,15 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 
 	/* now check how we want to blow things up ... */
 
-	if (!pg_strcasecmp(op, "fill-log")) {
+	if (!pg_strcasecmp(op, "break-archive")) {
+		char *archive_command = GetConfigOptionByName("archive_command", NULL, false);
+		char *settings[] = { "archive_mode", "archive_command", "pg_kaboom.saved_archive_command", NULL };
+		char *values[] = { "on", quoted_string("/bin/false"), quoted_string(archive_command), NULL };
+
+		force_settings_and_restart(settings, values);
+
+		PG_RETURN_BOOL(1);
+	} else if (!pg_strcasecmp(op, "fill-log")) {
 		char *log_destination = GetConfigOptionByName("log_destination", NULL, false);
 		char *log_directory = GetConfigOptionByName("log_directory", NULL, false);
 
