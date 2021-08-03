@@ -6,4 +6,5 @@
 - chmod 000 on random files
 - checksum invalidation
 - other random page corruption
+- delayed WAL application
 - more!
