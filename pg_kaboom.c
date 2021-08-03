@@ -48,6 +48,8 @@ Weapon weapons[] = {
 	{ NULL, NULL, NULL, NULL }
 };
 
+#define NUM_WEAPONS (sizeof(weapons)/sizeof(Weapon) - 1)
+
 /* global variables */
 static char *disclaimer;
 static char *pgdata_path = NULL;
@@ -141,7 +143,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 
 static char *missing_weapon_hint() {
 	char *hint, *p;
-	int i, num_weapons = sizeof(weapons)/sizeof(Weapon) - 1; /* NULL marker at end */
+	int i;
 	size_t weapon_size = 0;
 	Weapon *weapon;
 
@@ -154,7 +156,7 @@ static char *missing_weapon_hint() {
 
 	/* leading text, the word "or " and trailing newline,
 	   additional padding for formatting - 4 bytes per, quote quote comma space */
-	weapon_size += sizeof(UNKNOWN_HINT_MESSAGE_PREFIX) + 4 + num_weapons * 4;
+	weapon_size += sizeof(UNKNOWN_HINT_MESSAGE_PREFIX) + 4 + NUM_WEAPONS * 4;
 
 	/* now allocate the message buffer */
 	p = hint = palloc(weapon_size);
@@ -163,22 +165,22 @@ static char *missing_weapon_hint() {
 	p = stpcpy(p, UNKNOWN_HINT_MESSAGE_PREFIX);
 
 	/* do our individual copy now of each weapon name, stopping before the last one for the "OR" */
-	for (i = 0; i < num_weapons - 1; i++) {
+	for (i = 0; i < NUM_WEAPONS - 1; i++) {
 		*p++ = '\'';
 		p = stpcpy(p, weapons[i].wpn_name);
 		*p++ = '\'';
-		if (i != num_weapons - 2)
+		if (i != NUM_WEAPONS - 2)
 			*p++ = ',';
 		*p++ = ' ';
 	}
 
 	/* final item; only do the " or " if we have more than one */
-	if (num_weapons > 1) {
+	if (NUM_WEAPONS > 1) {
 		p = stpcpy(p, "or ");
 	}
 
 	*p++ = '\'';
-	p = stpcpy(p, weapons[num_weapons - 1].wpn_name);
+	p = stpcpy(p, weapons[NUM_WEAPONS - 1].wpn_name);
 	*p++ = '\'';
 	*p++ = '.';
 	*p++ = '\0';
