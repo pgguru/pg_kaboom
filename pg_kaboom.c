@@ -13,10 +13,46 @@
 
 #define PG_KABOOM_DISCLAIMER "I can afford to lose this data and server"
 
+/* function signature for the weapon implementation; argument is static so can expose multiple weapons with same function */
+typedef void (*wpn_impl)(char*arg);
+
+typedef struct Weapon {
+	char *wpn_name;
+	wpn_impl wpn_impl;
+	char *wpn_arg;
+	char *wpn_comment;
+} Weapon;
+
+/* weapon prototypes */
+static void wpn_break_archive();
+static void wpn_fill_log();
+static void wpn_fill_pgdata();
+static void wpn_fill_pgwal();
+static void wpn_restart();
+static void wpn_segfault();
+static void wpn_signal(char *signal);
+static void wpn_rm_pgdata();
+static void wpn_xact_wrap();
+
+Weapon weapons[] = {
+	{ "break-archive"	, &wpn_break_archive	, NULL, "force archive failures" },
+	{ "fill-log"		, &wpn_fill_log			, NULL, "use all the space in the log directory" },
+	{ "fill-pgdata"		, &wpn_fill_pgdata		, NULL, "use all the space in the pgdata directory" },
+	{ "fill-pgwal"		, &wpn_fill_pgwal		, NULL, "use all the space in the pg_wal directory" },
+	{ "restart"			, &wpn_restart			, NULL, "force an immediate restart" },
+	{ "segfault"		, &wpn_segfault			, NULL, "segfault inside a backend process" },
+	{ "signal"			, &wpn_signal			, NULL, "send a signal to the postmaster (KILL by default)" },
+	{ "rm-pgdata"		, &wpn_rm_pgdata		, NULL, "remove the pgdata directory" },
+	{ "xact-wrap"		, &wpn_xact_wrap		, NULL, "force wraparound autovacuum" },
+	{ NULL, NULL, NULL, NULL }
+};
+
+/* global variables */
 static char *disclaimer;
 static char *pgdata_path = NULL;
 static bool execute = false;
 
+/* sanity/utility routines */
 static void validate_we_can_blow_up_things();
 static void validate_we_can_restart();
 static void restart_database();
@@ -26,6 +62,7 @@ static void command_with_path(char *command, char *path, bool detach);
 static void command_with_path_internal(char *command, char *arg1, char *arg2, bool detach);
 static void force_settings_and_restart(char **setting, char **value);
 static char *quoted_string(char * setting);
+static char *missing_weapon_hint();
 
 PG_MODULE_MAGIC;
 
@@ -72,70 +109,75 @@ void _PG_fini(void)
 	/* ... C code here at time of extension unloading ... */
 }
 
+#define UNKNOWN_HINT_MESSAGE_PREFIX "must be one of: "
+
 Datum pg_kaboom(PG_FUNCTION_ARGS)
 {
 	char *op = TextDatumGetCString(PG_GETARG_DATUM(0));
+	Weapon *weapon = weapons;
 
 	/* special gating function check; will abort if everything isn't allowed */
 	validate_we_can_blow_up_things();
 
-	/* now check how we want to blow things up ... */
+	/* now check how we want to blow things up; linear search for matching name ... */
+	while (weapon->wpn_name && pg_strcasecmp(weapon->wpn_name, op) != 0)
+		weapon++;
 
-	if (!pg_strcasecmp(op, "break-archive")) {
-		char *archive_command = GetConfigOptionByName("archive_command", NULL, false);
-		char *settings[] = { "archive_mode", "archive_command", "pg_kaboom.saved_archive_command", NULL };
-		char *values[] = { "on", quoted_string("/bin/false"), quoted_string(archive_command), NULL };
-
-		force_settings_and_restart(settings, values);
-
-		PG_RETURN_BOOL(1);
-	} else if (!pg_strcasecmp(op, "fill-log")) {
-		char *log_destination = GetConfigOptionByName("log_destination", NULL, false);
-		char *log_directory = GetConfigOptionByName("log_directory", NULL, false);
-
-		if (pg_strcasecmp(log_destination, "stderr") || !*log_directory)
-			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-							errmsg("can only fill up log_directory if stderr and set")));
-
-		/* if an absolute path, just use that, otherwise append to the data directory */
-		if (*log_directory == '/')
-			fill_disk_at_path(log_directory, NULL);
-		else
-			fill_disk_at_path(pgdata_path, log_directory);
-		PG_RETURN_BOOL(1);
-	} else if (!pg_strcasecmp(op, "fill-pgdata")) {
-		fill_disk_at_path(pgdata_path, NULL);
-		PG_RETURN_BOOL(1);
-	} else if (!pg_strcasecmp(op, "fill-pgwal")) {
-		fill_disk_at_path(pgdata_path, "pg_wal");
-		PG_RETURN_BOOL(1);
-	} else if (!pg_strcasecmp(op, "restart")) {
-		validate_we_can_restart();
-		restart_database();
-		PG_RETURN_BOOL(1);
-	} else if (!pg_strcasecmp(op, "segfault")) {
-		volatile char *segfault = NULL;
-		*segfault = '\0';
-		PG_RETURN_BOOL(1);
-	} else if (!pg_strcasecmp(op, "signal")) {
-		kill(PostmasterPid, SIGKILL);
-		PG_RETURN_BOOL(1);
-	} else if (!pg_strcasecmp(op, "rm-pgdata")) {
-		command_with_path("/bin/rm -Rf %s", pgdata_path, false);
-		PG_RETURN_BOOL(1);
-	} else if (!pg_strcasecmp(op, "xact-wrap")) {
-		char *settings[] = { "autovacuum_freeze_max_age", NULL };
-		char *values[] = { "100000", NULL };
-
-		force_settings_and_restart(settings, values);
+	if (weapon->wpn_name) {
+		/* we matched a weapon name */
+		weapon->wpn_impl(weapon->wpn_arg);
 		PG_RETURN_BOOL(1);
 	} else {
-		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op),
-				errhint("must be one of 'fill-log', 'fill-pgdata', 'fill-pgwal', 'restart', 'rm-pgdata', 'segfault', 'signal' or 'xact-wrap'"));
+		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op), errhint("%s", missing_weapon_hint()));
+		PG_RETURN_BOOL(0);
+	}
+}
+
+static char *missing_weapon_hint() {
+	char *hint, *p;
+	int i, num_weapons = sizeof(weapons)/sizeof(Weapon) - 1; /* NULL marker at end */
+	size_t weapon_size = 0;
+	Weapon *weapon;
+
+	/* calculate the sum of all of the weapon names */
+	weapon = weapons;
+	while (weapon->wpn_name) {
+		weapon_size += strlen(weapon->wpn_name);
+		weapon++;
 	}
 
-	/* will only return false if we don't recognize the method of destruction or if something failed to fail */
-	PG_RETURN_BOOL(0);
+	/* leading text, the word "or " and trailing newline,
+	   additional padding for formatting - 4 bytes per, quote quote comma space */
+	weapon_size += sizeof(UNKNOWN_HINT_MESSAGE_PREFIX) + 4 + num_weapons * 4;
+
+	/* now allocate the message buffer */
+	p = hint = palloc(weapon_size);
+
+	/* start with the hint prefix */
+	p = stpcpy(p, UNKNOWN_HINT_MESSAGE_PREFIX);
+
+	/* do our individual copy now of each weapon name, stopping before the last one for the "OR" */
+	for (i = 0; i < num_weapons - 1; i++) {
+		*p++ = '\'';
+		p = stpcpy(p, weapons[i].wpn_name);
+		*p++ = '\'';
+		if (i != num_weapons - 2)
+			*p++ = ',';
+		*p++ = ' ';
+	}
+
+	/* final item; only do the " or " if we have more than one */
+	if (num_weapons > 1) {
+		p = stpcpy(p, "or ");
+	}
+
+	*p++ = '\'';
+	p = stpcpy(p, weapons[num_weapons - 1].wpn_name);
+	*p++ = '\'';
+	*p++ = '.';
+	*p++ = '\0';
+
+	return hint;
 }
 
 static void validate_we_can_blow_up_things() {
@@ -292,4 +334,67 @@ static char *quoted_string (char *setting) {
 	snprintf(qstring, size, "'%s'", setting);
 
 	return qstring;
+}
+
+/* Weapon definitions */
+
+static void wpn_break_archive() {
+	char *archive_command = GetConfigOptionByName("archive_command", NULL, false);
+	char *settings[] = { "archive_mode", "archive_command", "pg_kaboom.saved_archive_command", NULL };
+	char *values[] = { "on", quoted_string("/bin/false"), quoted_string(archive_command), NULL };
+
+	force_settings_and_restart(settings, values);
+}
+
+static void wpn_fill_log() {
+	char *log_destination = GetConfigOptionByName("log_destination", NULL, false);
+	char *log_directory = GetConfigOptionByName("log_directory", NULL, false);
+
+	if (pg_strcasecmp(log_destination, "stderr") || !*log_directory)
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg("can only fill up log_directory if stderr and set")));
+
+	/* if an absolute path, just use that, otherwise append to the data directory */
+	if (*log_directory == '/')
+		fill_disk_at_path(log_directory, NULL);
+	else
+		fill_disk_at_path(pgdata_path, log_directory);
+}
+
+static void wpn_fill_pgdata() {
+	fill_disk_at_path(pgdata_path, NULL);
+}
+
+static void wpn_fill_pgwal() {
+	fill_disk_at_path(pgdata_path, "pg_wal");
+}
+
+static void wpn_restart() {
+	validate_we_can_restart();
+	restart_database();
+}
+
+static void wpn_segfault() {
+	volatile char *segfault = NULL;
+	*segfault = '\0';
+}
+
+static void wpn_signal(char *signal) {
+	int sig = SIGKILL;
+
+	if (signal)
+		sig = atoi(signal);
+
+	kill(PostmasterPid, sig);
+}
+
+static void wpn_rm_pgdata() {
+	command_with_path("/bin/rm -Rf %s", pgdata_path, false);
+}
+
+static void wpn_xact_wrap() {
+	char *settings[] = { "autovacuum_freeze_max_age", NULL };
+	char *values[] = { "100000", NULL };
+
+	force_settings_and_restart(settings, values);
 }
