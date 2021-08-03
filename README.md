@@ -61,5 +61,12 @@ Currently defined weapons (more to come) are:
 
 - `xact-wrap` :: force the database to run an xact-wraparound vacuum
 
+You can also use the following "special" weapons:
+
+- `random` :: choose a random weapon
+
+- `null` :: don't do anything, just go through the normal flow
+
+
 Contributions welcome!  Let's get creative in testing how PostgreSQL can recover/respond to various systems meddling!
 

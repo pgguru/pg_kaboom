@@ -25,6 +25,7 @@ typedef struct Weapon {
 } Weapon;
 
 /* weapon prototypes */
+static void wpn_special(char *arg, Jsonb *payload);
 static void wpn_break_archive();
 static void wpn_fill_log();
 static void wpn_fill_pgdata();
@@ -36,6 +37,10 @@ static void wpn_rm_pgdata();
 static void wpn_xact_wrap();
 
 Weapon weapons[] = {
+	/* "special" weapons */
+	{ "random"			, &wpn_special			, "random" , "select a random non-special weapon" },
+	{ "null"			, &wpn_special			, "null"   , "noop" },
+
 	{ "break-archive"	, &wpn_break_archive	, NULL, "force archive failures" },
 	{ "fill-log"		, &wpn_fill_log			, NULL, "use all the space in the log directory" },
 	{ "fill-pgdata"		, &wpn_fill_pgdata		, NULL, "use all the space in the pgdata directory" },
@@ -345,6 +350,28 @@ static char *quoted_string (char *setting) {
 }
 
 /* Weapon definitions */
+
+static void wpn_special(char *arg, Jsonb *payload) {
+	/* this is a "special" metaweapon, not a weapon itself */
+	if (!pg_strcasecmp(arg, "random")) {
+		int wpn_idx;
+
+		do {
+			/* doesn't need to be secure, just pseudo-random is fine */
+			wpn_idx = rand() % NUM_WEAPONS;
+
+			/* exclude "null" and "random" from random selection */
+		} while (!strcmp(weapons[wpn_idx].wpn_name, "null") ||
+				 !strcmp(weapons[wpn_idx].wpn_name, "random"));
+
+		ereport(NOTICE, errmsg("deviously selecting the random weapon '%s'",
+							   weapons[wpn_idx].wpn_name));
+
+		weapons[wpn_idx].wpn_impl(weapons[wpn_idx].wpn_arg, payload);
+	} else if (!pg_strcasecmp(arg, "null")) {
+		ereport(NOTICE, errmsg("intentionally doing nothing"));
+	}
+}
 
 static void wpn_break_archive() {
 	char *archive_command = GetConfigOptionByName("archive_command", NULL, false);
