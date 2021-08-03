@@ -3,6 +3,7 @@
 #include "funcapi.h"
 #include "miscadmin.h"
 #include "utils/guc.h"
+#include "utils/jsonb.h"
 #include "tcop/tcopprot.h"
 #include "utils/builtins.h"
 #include "storage/ipc.h"
@@ -14,7 +15,7 @@
 #define PG_KABOOM_DISCLAIMER "I can afford to lose this data and server"
 
 /* function signature for the weapon implementation; argument is static so can expose multiple weapons with same function */
-typedef void (*wpn_impl)(char*arg);
+typedef void (*wpn_impl)(char *arg, Jsonb *payload);
 
 typedef struct Weapon {
 	char *wpn_name;
@@ -30,7 +31,7 @@ static void wpn_fill_pgdata();
 static void wpn_fill_pgwal();
 static void wpn_restart();
 static void wpn_segfault();
-static void wpn_signal(char *signal);
+static void wpn_signal(char *signal, Jsonb *payload);
 static void wpn_rm_pgdata();
 static void wpn_xact_wrap();
 
@@ -114,10 +115,15 @@ void _PG_fini(void)
 Datum pg_kaboom(PG_FUNCTION_ARGS)
 {
 	char *op = TextDatumGetCString(PG_GETARG_DATUM(0));
+	Jsonb *payload = NULL;
 	Weapon *weapon = weapons;
 
 	/* special gating function check; will abort if everything isn't allowed */
 	validate_we_can_blow_up_things();
+
+	/* check for payload */
+	if (!PG_ARGISNULL(1))
+		payload = PG_GETARG_JSONB_P(1);
 
 	/* now check how we want to blow things up; linear search for matching name ... */
 	while (weapon->wpn_name && pg_strcasecmp(weapon->wpn_name, op) != 0)
@@ -125,7 +131,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 
 	if (weapon->wpn_name) {
 		/* we matched a weapon name */
-		weapon->wpn_impl(weapon->wpn_arg);
+		weapon->wpn_impl(weapon->wpn_arg, payload);
 		PG_RETURN_BOOL(1);
 	} else {
 		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op), errhint("%s", missing_weapon_hint()));
@@ -379,7 +385,7 @@ static void wpn_segfault() {
 	*segfault = '\0';
 }
 
-static void wpn_signal(char *signal) {
+static void wpn_signal(char *signal, Jsonb *payload) {
 	int sig = SIGKILL;
 
 	if (signal)
