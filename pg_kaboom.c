@@ -21,7 +21,7 @@ typedef struct Weapon {
 	char *wpn_name;
 	wpn_impl wpn_impl;
 	char *wpn_arg;
-	char *wpn_comment;
+	char *wpn_desc;
 } Weapon;
 
 /* weapon prototypes */
@@ -78,8 +78,10 @@ void _PG_init(void);
 void _PG_fini(void);
 
 Datum pg_kaboom(PG_FUNCTION_ARGS);
+Datum pg_kaboom_arsenal(PG_FUNCTION_ARGS);
 
 PG_FUNCTION_INFO_V1(pg_kaboom);
+PG_FUNCTION_INFO_V1(pg_kaboom_arsenal);
 
 void _PG_init(void)
 {
@@ -432,4 +434,61 @@ static void wpn_xact_wrap() {
 	char *values[] = { "100000", NULL };
 
 	force_settings_and_restart(settings, values);
+}
+
+
+/* SRF to return information about the available weapons */
+Datum pg_kaboom_arsenal(PG_FUNCTION_ARGS)
+{
+	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
+	TupleDesc	tupdesc;
+	Tuplestorestate *tupstore;
+	MemoryContext per_query_ctx;
+	MemoryContext oldcontext;
+	Weapon *weapon = weapons;
+
+	/* check to see if caller supports us returning a tuplestore */
+	if (rsinfo == NULL || !IsA(rsinfo, ReturnSetInfo))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("set-valued function called in context that cannot accept a set")));
+	if (!(rsinfo->allowedModes & SFRM_Materialize))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("materialize mode required, but it is not allowed in this context")));
+
+	/* Build a tuple descriptor for our result type */
+	if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+		elog(ERROR, "return type must be a row type");
+
+	per_query_ctx = rsinfo->econtext->ecxt_per_query_memory;
+	oldcontext = MemoryContextSwitchTo(per_query_ctx);
+
+	tupstore = tuplestore_begin_heap(true, false, work_mem);
+	rsinfo->returnMode = SFRM_Materialize;
+	rsinfo->setResult = tupstore;
+	rsinfo->setDesc = tupdesc;
+
+	MemoryContextSwitchTo(oldcontext);
+
+	while (weapon->wpn_name)
+	{
+		/* for each row */
+		Datum		values[2];
+		bool		nulls[2];
+
+		MemSet(values, 0, sizeof(values));
+		MemSet(nulls, 0, sizeof(nulls));
+
+		values[0] = CStringGetTextDatum(weapon->wpn_name);
+		values[1] = CStringGetTextDatum(weapon->wpn_desc);
+		
+		tuplestore_putvalues(tupstore, tupdesc, values, nulls);
+		weapon++;
+	}
+
+	/* clean up and return the tuplestore */
+	tuplestore_donestoring(tupstore);
+
+	return (Datum) 0;	
 }
