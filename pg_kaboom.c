@@ -3,6 +3,7 @@
 #include "funcapi.h"
 #include "miscadmin.h"
 #include "utils/guc.h"
+#include "utils/numeric.h"
 #include "utils/jsonb.h"
 #include "tcop/tcopprot.h"
 #include "utils/builtins.h"
@@ -71,6 +72,8 @@ static void command_with_path_internal(char *command, char *arg1, char *arg2, bo
 static void force_settings_and_restart(char **setting, char **value);
 static char *quoted_string(char * setting);
 static char *missing_weapon_hint();
+static char *simple_get_json_str(Jsonb *in, char *key);
+static int simple_get_json_int(Jsonb *in, char *key);
 
 PG_MODULE_MAGIC;
 
@@ -349,6 +352,50 @@ static char *quoted_string (char *setting) {
 	snprintf(qstring, size, "'%s'", setting);
 
 	return qstring;
+}
+
+/* simple handlers for pulling expected values from JSON type */
+/* returns NULL if missing, or -1 if an int */
+static char *simple_get_json_str(Jsonb *in, char *key) {
+	Assert(in != NULL);
+	Assert(key != NULL);
+	Assert(JB_ROOT_IS_OBJECT(in));
+
+	JsonbValue *val = getKeyJsonValueFromContainer(&in->root, key, strlen(key), NULL);
+	char *str = NULL;
+
+	/* check if it is a simple scalar value, which it should be */
+	if (val->type != jbvString) {
+		ereport(ERROR, errmsg("expected string type"));
+		return NULL;
+	}
+
+	str = palloc(val->val.string.len);
+	strncpy(str, val->val.string.val, val->val.string.len);
+	return str;
+}
+
+static int simple_get_json_int(Jsonb *in, char *key) {
+	Assert(in != NULL);
+	Assert(key != NULL);
+	Assert(JB_ROOT_IS_OBJECT(in));
+
+	JsonbValue *val = getKeyJsonValueFromContainer(&in->root, key, strlen(key), NULL);
+	char *str;
+	int ret;
+
+	/* check if it is a simple scalar value, which it should be */
+	if (val->type != jbvNumeric)
+		ereport(ERROR, errmsg("expected integer type"));
+
+	str = numeric_normalize(val->val.numeric);
+
+	if (str && parse_int(str, &ret, 0, NULL))
+		return ret;
+
+	ereport(ERROR, errmsg("expected integer type"));
+
+	return -1;
 }
 
 /* Weapon definitions */
