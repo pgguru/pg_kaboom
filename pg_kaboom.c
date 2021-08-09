@@ -34,7 +34,7 @@ static void wpn_fill_pgdata();
 static void wpn_fill_pgwal();
 static void wpn_restart();
 static void wpn_segfault();
-static void wpn_signal(char *signal, Jsonb *payload);
+static void wpn_signal(char *arg, Jsonb *payload);
 static void wpn_rm_pgdata();
 static void wpn_xact_wrap();
 
@@ -517,13 +517,27 @@ static void wpn_segfault() {
 	*segfault = '\0';
 }
 
-static void wpn_signal(char *signal, Jsonb *payload) {
+static void wpn_signal(char *arg, Jsonb *payload) {
 	int sig = SIGKILL;
+	pid_t sig_pid = PostmasterPid;
 
-	if (signal)
-		sig = atoi(signal);
+	if (payload) {
+		int raw_sig;
+		/* maybe pull out a signal and a backend to target */
+		char *type = simple_get_json_str(payload, "type");
 
-	kill(PostmasterPid, sig);
+		/* look for the pid of a random backend of the given type */
+		if (type) {
+			sig_pid = find_random_pid_of_type(type);
+			if (!sig_pid)
+				ereport(NOTICE, errmsg("couldn't find pid of type '%s'", type));
+		}
+		raw_sig = simple_get_json_int(payload, "signal");
+		if (raw_sig)
+			sig = raw_sig;
+	}
+
+	kill(sig_pid, sig);
 }
 
 static void wpn_rm_pgdata() {
