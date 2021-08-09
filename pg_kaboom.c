@@ -482,7 +482,7 @@ Datum pg_kaboom_arsenal(PG_FUNCTION_ARGS)
 
 		values[0] = CStringGetTextDatum(weapon->wpn_name);
 		values[1] = CStringGetTextDatum(weapon->wpn_desc);
-		
+
 		tuplestore_putvalues(tupstore, tupdesc, values, nulls);
 		weapon++;
 	}
@@ -490,5 +490,5 @@ Datum pg_kaboom_arsenal(PG_FUNCTION_ARGS)
 	/* clean up and return the tuplestore */
 	tuplestore_donestoring(tupstore);
 
-	return (Datum) 0;	
+	return (Datum) 0;
 }

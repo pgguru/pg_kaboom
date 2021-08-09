@@ -4,6 +4,7 @@ root = true
 indent_style = tab
 indent_size = tab
 tab_width = 4
+trim_trailing_whitespace = true
 
 [*.{sgml,xml}]
 indent_style = space
