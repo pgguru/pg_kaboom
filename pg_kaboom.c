@@ -8,6 +8,7 @@
 #include "tcop/tcopprot.h"
 #include "utils/builtins.h"
 #include "storage/ipc.h"
+#include "pgstat.h"
 
 #include <signal.h>
 #include <unistd.h>
@@ -74,6 +75,15 @@ static char *quoted_string(char * setting);
 static char *missing_weapon_hint();
 static char *simple_get_json_str(Jsonb *in, char *key);
 static int simple_get_json_int(Jsonb *in, char *key);
+static pid_t find_random_pid_of_type(char *type);
+
+/* constants snarfed from postmaster.c; no include */
+#define BACKEND_TYPE_NORMAL		0x0001	/* normal backend */
+#define BACKEND_TYPE_AUTOVAC	0x0002	/* autovacuum worker process */
+#define BACKEND_TYPE_WALSND		0x0004	/* walsender process */
+#define BACKEND_TYPE_BGWORKER	0x0008	/* bgworker process */
+#define BACKEND_TYPE_ALL		0x000F	/* OR of all the above */
+
 
 PG_MODULE_MAGIC;
 
@@ -396,6 +406,50 @@ static int simple_get_json_int(Jsonb *in, char *key) {
 	ereport(ERROR, errmsg("expected integer type"));
 
 	return -1;
+}
+
+/* find a backend of the given type randomly; if picking a client backend, excludes this specific
+   backend for obvious reasons.  returns the pid of the process or 0 if not found */
+
+static pid_t find_random_pid_of_type(char *type) {
+	int i,
+		startIdx,
+		num_procs = pgstat_fetch_stat_numbackends(),
+		backend_type;
+	pid_t pid = 0;
+	bool is_first = true;
+
+	/* first calculate the backend_type based on "type" param */
+	backend_type =
+		!pg_strcasecmp("backend", type) ? BACKEND_TYPE_NORMAL :
+		!pg_strcasecmp("autovac", type) ? BACKEND_TYPE_AUTOVAC :
+		!pg_strcasecmp("walsender", type) ? BACKEND_TYPE_WALSND :
+		!pg_strcasecmp("bgworker", type) ? BACKEND_TYPE_BGWORKER :
+		0
+		;
+
+	/* TODO: add Auxilary Procs handling to allow you to target them too */
+	if (!backend_type)
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg("can't find backend of type %s", type)));
+
+	/* pick a start index based on a random entry point into the ProcArray */
+	i = startIdx = random() % num_procs;
+
+	/* do a linear wrapping search through the array starting at the random offset */
+	for (i = startIdx; i != startIdx || is_first; i = ((i + 1) >= num_procs ? 0 : i + 1), is_first = false) {
+		PgBackendStatus *st = pgstat_fetch_stat_beentry(i);
+
+		if (st && st->st_procpid > 0 && st->st_procpid != MyProcPid) {
+			/* check for correct backend type and exit loop if so */
+			if (st->st_backendType == backend_type) {
+				pid = st->st_procpid;
+				break;
+			}
+		}
+	}
+
+	return pid;
 }
 
 /* Weapon definitions */
