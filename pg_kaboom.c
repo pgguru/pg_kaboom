@@ -28,7 +28,7 @@ typedef struct Weapon {
 
 /* weapon prototypes */
 static void wpn_special(char *arg, Jsonb *payload);
-static void wpn_break_archive();
+static void wpn_break_archive(char *arg, Jsonb *payload);
 static void wpn_fill_log();
 static void wpn_fill_pgdata();
 static void wpn_fill_pgwal();
@@ -476,10 +476,11 @@ static void wpn_special(char *arg, Jsonb *payload) {
 	}
 }
 
-static void wpn_break_archive() {
+static void wpn_break_archive(char *arg, Jsonb *payload) {
+	char *bad_archive_command = payload ? simple_get_json_str(payload, "archive_command") : "/usr/bin/false";
 	char *archive_command = GetConfigOptionByName("archive_command", NULL, false);
 	char *settings[] = { "archive_mode", "archive_command", "pg_kaboom.saved_archive_command", NULL };
-	char *values[] = { "on", quoted_string("/usr/bin/false"), quoted_string(archive_command), NULL };
+	char *values[] = { "on", quoted_string(bad_archive_command), quoted_string(archive_command), NULL };
 
 	force_settings_and_restart(settings, values);
 }
