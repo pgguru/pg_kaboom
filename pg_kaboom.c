@@ -479,7 +479,7 @@ static void wpn_special(char *arg, Jsonb *payload) {
 static void wpn_break_archive() {
 	char *archive_command = GetConfigOptionByName("archive_command", NULL, false);
 	char *settings[] = { "archive_mode", "archive_command", "pg_kaboom.saved_archive_command", NULL };
-	char *values[] = { "on", quoted_string("/bin/false"), quoted_string(archive_command), NULL };
+	char *values[] = { "on", quoted_string("/usr/bin/false"), quoted_string(archive_command), NULL };
 
 	force_settings_and_restart(settings, values);
 }
