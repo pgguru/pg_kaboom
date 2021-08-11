@@ -312,8 +312,15 @@ static void restart_database() {
 	/* TODO: read/parse /proc invocation of postmaster and just issue that instead? */
 
 	/* for now, we will just force an immediate shutdown and then run pg_ctl -D $pgdata start */
-	char *command = "bash -c 'kill -9 %s; sleep 1;" PGBINDIR "/pg_ctl -D %s start -l /tmp/pg_kaboom_startup.log'";
+	char *command = "bash -c 'kill -9 %s; sleep 1; %s -D %s start -l /tmp/pg_kaboom_startup.log'";
 	char postmaster_pid[10];
+	char pg_ctl_path[MAXPGPATH];
+
+	if (find_other_exec(my_exec_path, "pg_ctl", PG_BACKEND_VERSIONSTR,
+						pg_ctl_path) < 0)
+		ereport(FATAL,
+				(errmsg("%s: could not locate matching pg_ctl executable",
+						my_exec_path)));
 
 	snprintf(postmaster_pid, 10, "%d", PostmasterPid);
 	command_with_path_internal(command, postmaster_pid, pgdata_path, true);
