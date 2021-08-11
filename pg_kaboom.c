@@ -312,8 +312,15 @@ static void restart_database() {
 	/* TODO: read/parse /proc invocation of postmaster and just issue that instead? */
 
 	/* for now, we will just force an immediate shutdown and then run pg_ctl -D $pgdata start */
-	char *command = "bash -c 'kill -9 %s; sleep 1;" PGBINDIR "/pg_ctl -D %s start -l /tmp/pg_kaboom_startup.log'";
+	char *command = "bash -c 'kill -9 %s; sleep 1; %s -D %s start -l /tmp/pg_kaboom_startup.log'";
 	char postmaster_pid[10];
+	char pg_ctl_path[MAXPGPATH];
+
+	if (find_other_exec(my_exec_path, "pg_ctl", PG_BACKEND_VERSIONSTR,
+						pg_ctl_path) < 0)
+		ereport(FATAL,
+				(errmsg("%s: could not locate matching pg_ctl executable",
+						my_exec_path)));
 
 	snprintf(postmaster_pid, 10, "%d", PostmasterPid);
 	command_with_path_internal(command, postmaster_pid, pgdata_path, true);
@@ -367,38 +374,56 @@ static char *quoted_string (char *setting) {
 /* simple handlers for pulling expected values from JSON type */
 /* returns NULL if missing, or -1 if an int */
 static char *simple_get_json_str(Jsonb *in, char *key) {
+	JsonbValue *jsonkey, *jsonval;
+	char *str = NULL;
+
 	Assert(in != NULL);
 	Assert(key != NULL);
 	Assert(JB_ROOT_IS_OBJECT(in));
 
-	JsonbValue *val = getKeyJsonValueFromContainer(&in->root, key, strlen(key), NULL);
-	char *str = NULL;
+	jsonkey = palloc(sizeof(JsonbValue));
+	jsonkey->type = jbvString;
+	jsonkey->val.string.len = strlen(key);
+	jsonkey->val.string.val = key;
+
+	jsonval = findJsonbValueFromContainer(&in->root, JB_FOBJECT, jsonkey);
 
 	/* check if it is a simple scalar value, which it should be */
-	if (val->type != jbvString) {
+	if (!jsonval || jsonval->type != jbvString)
 		ereport(ERROR, errmsg("expected string type"));
-		return NULL;
-	}
 
-	str = palloc(val->val.string.len);
-	strncpy(str, val->val.string.val, val->val.string.len);
+	str = palloc(jsonval->val.string.len);
+	strncpy(str, jsonval->val.string.val, jsonval->val.string.len);
+	pfree(jsonkey);
+	pfree(jsonval);
+
 	return str;
 }
 
 static int simple_get_json_int(Jsonb *in, char *key) {
+	JsonbValue *jsonkey, *jsonval;
+	char *str;
+	int ret;
+
 	Assert(in != NULL);
 	Assert(key != NULL);
 	Assert(JB_ROOT_IS_OBJECT(in));
 
-	JsonbValue *val = getKeyJsonValueFromContainer(&in->root, key, strlen(key), NULL);
-	char *str;
-	int ret;
+	jsonkey = palloc(sizeof(JsonbValue));
+	jsonkey->type = jbvString;
+	jsonkey->val.string.len = strlen(key);
+	jsonkey->val.string.val = key;
+
+	jsonval = findJsonbValueFromContainer(&in->root, JB_FOBJECT, jsonkey);
 
 	/* check if it is a simple scalar value, which it should be */
-	if (val->type != jbvNumeric)
+	if (!jsonval || jsonval->type != jbvNumeric)
 		ereport(ERROR, errmsg("expected integer type"));
 
-	str = numeric_normalize(val->val.numeric);
+	str = numeric_normalize(jsonval->val.numeric);
+
+	pfree(jsonkey);
+	pfree(jsonval);
 
 	if (str && parse_int(str, &ret, 0, NULL))
 		return ret;
