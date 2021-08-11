@@ -374,12 +374,12 @@ static char *quoted_string (char *setting) {
 /* simple handlers for pulling expected values from JSON type */
 /* returns NULL if missing, or -1 if an int */
 static char *simple_get_json_str(Jsonb *in, char *key) {
+	JsonbValue *jsonkey, *jsonval;
+	char *str = NULL;
+
 	Assert(in != NULL);
 	Assert(key != NULL);
 	Assert(JB_ROOT_IS_OBJECT(in));
-
-	JsonbValue *jsonkey, *jsonval;
-	char *str = NULL;
 
 	jsonkey = palloc(sizeof(JsonbValue));
 	jsonkey->type = jbvString;
@@ -401,13 +401,13 @@ static char *simple_get_json_str(Jsonb *in, char *key) {
 }
 
 static int simple_get_json_int(Jsonb *in, char *key) {
-	Assert(in != NULL);
-	Assert(key != NULL);
-	Assert(JB_ROOT_IS_OBJECT(in));
-
 	JsonbValue *jsonkey, *jsonval;
 	char *str;
 	int ret;
+
+	Assert(in != NULL);
+	Assert(key != NULL);
+	Assert(JB_ROOT_IS_OBJECT(in));
 
 	jsonkey = palloc(sizeof(JsonbValue));
 	jsonkey->type = jbvString;
