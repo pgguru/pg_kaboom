@@ -16,8 +16,12 @@
 
 #define PG_KABOOM_DISCLAIMER "I can afford to lose this data and server"
 
-/* function signature for the weapon implementation; argument is static so can expose multiple weapons with same function */
-typedef void (*wpn_impl)(char *arg, Jsonb *payload);
+#define WPN_ARGS Jsonb *payload, char *arg
+
+/* function signature for the weapon implementation; "payload" is for weapon customization; "arg" is
+   static so can expose multiple weapons with same function implementation */
+
+typedef void (*wpn_impl)(WPN_ARGS);
 
 typedef struct Weapon {
 	char *wpn_name;
@@ -27,16 +31,16 @@ typedef struct Weapon {
 } Weapon;
 
 /* weapon prototypes */
-static void wpn_special(char *arg, Jsonb *payload);
-static void wpn_break_archive(char *arg, Jsonb *payload);
-static void wpn_fill_log();
-static void wpn_fill_pgdata();
-static void wpn_fill_pgwal();
-static void wpn_restart();
-static void wpn_segfault();
-static void wpn_signal(char *arg, Jsonb *payload);
-static void wpn_rm_pgdata();
-static void wpn_xact_wrap();
+static void wpn_special(WPN_ARGS);
+static void wpn_break_archive(WPN_ARGS);
+static void wpn_fill_log(WPN_ARGS);
+static void wpn_fill_pgdata(WPN_ARGS);
+static void wpn_fill_pgwal(WPN_ARGS);
+static void wpn_restart(WPN_ARGS);
+static void wpn_segfault(WPN_ARGS);
+static void wpn_signal(WPN_ARGS);
+static void wpn_rm_pgdata(WPN_ARGS);
+static void wpn_xact_wrap(WPN_ARGS);
 
 Weapon weapons[] = {
 	/* "special" weapons */
@@ -153,7 +157,7 @@ Datum pg_kaboom(PG_FUNCTION_ARGS)
 
 	if (weapon->wpn_name) {
 		/* we matched a weapon name */
-		weapon->wpn_impl(weapon->wpn_arg, payload);
+		weapon->wpn_impl(payload, weapon->wpn_arg);
 		PG_RETURN_BOOL(1);
 	} else {
 		ereport(NOTICE, errmsg("unrecognized operation: '%s'", op), errhint("%s", missing_weapon_hint()));
@@ -479,7 +483,7 @@ static pid_t find_random_pid_of_type(char *type) {
 
 /* Weapon definitions */
 
-static void wpn_special(char *arg, Jsonb *payload) {
+static void wpn_special(WPN_ARGS) {
 	/* this is a "special" metaweapon, not a weapon itself */
 	if (!pg_strcasecmp(arg, "random")) {
 		int wpn_idx;
@@ -495,13 +499,13 @@ static void wpn_special(char *arg, Jsonb *payload) {
 		ereport(NOTICE, errmsg("deviously selecting the random weapon '%s'",
 							   weapons[wpn_idx].wpn_name));
 
-		weapons[wpn_idx].wpn_impl(weapons[wpn_idx].wpn_arg, payload);
+		weapons[wpn_idx].wpn_impl(payload, weapons[wpn_idx].wpn_arg);
 	} else if (!pg_strcasecmp(arg, "null")) {
 		ereport(NOTICE, errmsg("intentionally doing nothing"));
 	}
 }
 
-static void wpn_break_archive(char *arg, Jsonb *payload) {
+static void wpn_break_archive(WPN_ARGS) {
 	char *bad_archive_command = payload ? simple_get_json_str(payload, "archive_command") : "/usr/bin/false";
 	char *archive_command = GetConfigOptionByName("archive_command", NULL, false);
 	char *settings[] = { "archive_mode", "archive_command", "pg_kaboom.saved_archive_command", NULL };
@@ -510,7 +514,7 @@ static void wpn_break_archive(char *arg, Jsonb *payload) {
 	force_settings_and_restart(settings, values);
 }
 
-static void wpn_fill_log() {
+static void wpn_fill_log(WPN_ARGS) {
 	char *log_destination = GetConfigOptionByName("log_destination", NULL, false);
 	char *log_directory = GetConfigOptionByName("log_directory", NULL, false);
 
@@ -525,25 +529,25 @@ static void wpn_fill_log() {
 		fill_disk_at_path(pgdata_path, log_directory);
 }
 
-static void wpn_fill_pgdata() {
+static void wpn_fill_pgdata(WPN_ARGS) {
 	fill_disk_at_path(pgdata_path, NULL);
 }
 
-static void wpn_fill_pgwal() {
+static void wpn_fill_pgwal(WPN_ARGS) {
 	fill_disk_at_path(pgdata_path, "pg_wal");
 }
 
-static void wpn_restart() {
+static void wpn_restart(WPN_ARGS) {
 	validate_we_can_restart();
 	restart_database();
 }
 
-static void wpn_segfault() {
+static void wpn_segfault(WPN_ARGS) {
 	volatile char *segfault = NULL;
 	*segfault = '\0';
 }
 
-static void wpn_signal(char *arg, Jsonb *payload) {
+static void wpn_signal(WPN_ARGS) {
 	int sig = SIGKILL;
 	pid_t sig_pid = PostmasterPid;
 
@@ -566,11 +570,11 @@ static void wpn_signal(char *arg, Jsonb *payload) {
 	kill(sig_pid, sig);
 }
 
-static void wpn_rm_pgdata() {
+static void wpn_rm_pgdata(WPN_ARGS) {
 	command_with_path("/bin/rm -Rf %s", pgdata_path, false);
 }
 
-static void wpn_xact_wrap() {
+static void wpn_xact_wrap(WPN_ARGS) {
 	char *settings[] = { "autovacuum_freeze_max_age", NULL };
 	char *values[] = { "100000", NULL };
 
