@@ -378,17 +378,25 @@ static char *simple_get_json_str(Jsonb *in, char *key) {
 	Assert(key != NULL);
 	Assert(JB_ROOT_IS_OBJECT(in));
 
-	JsonbValue *val = getKeyJsonValueFromContainer(&in->root, key, strlen(key), NULL);
+	JsonbValue *jsonkey, *jsonval;
 	char *str = NULL;
 
-	/* check if it is a simple scalar value, which it should be */
-	if (val->type != jbvString) {
-		ereport(ERROR, errmsg("expected string type"));
-		return NULL;
-	}
+	jsonkey = palloc(sizeof(JsonbValue));
+	jsonkey->type = jbvString;
+	jsonkey->val.string.len = strlen(key);
+	jsonkey->val.string.val = key;
 
-	str = palloc(val->val.string.len);
-	strncpy(str, val->val.string.val, val->val.string.len);
+	jsonval = findJsonbValueFromContainer(&in->root, JB_FOBJECT, jsonkey);
+
+	/* check if it is a simple scalar value, which it should be */
+	if (!jsonval || jsonval->type != jbvString)
+		ereport(ERROR, errmsg("expected string type"));
+
+	str = palloc(jsonval->val.string.len);
+	strncpy(str, jsonval->val.string.val, jsonval->val.string.len);
+	pfree(jsonkey);
+	pfree(jsonval);
+
 	return str;
 }
 
@@ -397,15 +405,25 @@ static int simple_get_json_int(Jsonb *in, char *key) {
 	Assert(key != NULL);
 	Assert(JB_ROOT_IS_OBJECT(in));
 
-	JsonbValue *val = getKeyJsonValueFromContainer(&in->root, key, strlen(key), NULL);
+	JsonbValue *jsonkey, *jsonval;
 	char *str;
 	int ret;
 
+	jsonkey = palloc(sizeof(JsonbValue));
+	jsonkey->type = jbvString;
+	jsonkey->val.string.len = strlen(key);
+	jsonkey->val.string.val = key;
+
+	jsonval = findJsonbValueFromContainer(&in->root, JB_FOBJECT, jsonkey);
+
 	/* check if it is a simple scalar value, which it should be */
-	if (val->type != jbvNumeric)
+	if (!jsonval || jsonval->type != jbvNumeric)
 		ereport(ERROR, errmsg("expected integer type"));
 
-	str = numeric_normalize(val->val.numeric);
+	str = numeric_normalize(jsonval->val.numeric);
+
+	pfree(jsonkey);
+	pfree(jsonval);
 
 	if (str && parse_int(str, &ret, 0, NULL))
 		return ret;
