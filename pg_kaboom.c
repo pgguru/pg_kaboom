@@ -391,8 +391,11 @@ static char *simple_get_json_str(Jsonb *in, char *key) {
 
 	jsonval = findJsonbValueFromContainer(&in->root, JB_FOBJECT, jsonkey);
 
+	if (!jsonval)
+		return NULL;
+
 	/* check if it is a simple scalar value, which it should be */
-	if (!jsonval || jsonval->type != jbvString)
+	if (jsonval->type != jbvString)
 		ereport(ERROR, errmsg("expected string type"));
 
 	str = palloc(jsonval->val.string.len);
@@ -419,8 +422,11 @@ static int simple_get_json_int(Jsonb *in, char *key) {
 
 	jsonval = findJsonbValueFromContainer(&in->root, JB_FOBJECT, jsonkey);
 
+	if (!jsonval)
+		return -1;
+
 	/* check if it is a simple scalar value, which it should be */
-	if (!jsonval || jsonval->type != jbvNumeric)
+	if (jsonval->type != jbvNumeric)
 		ereport(ERROR, errmsg("expected integer type"));
 
 	str = numeric_normalize(jsonval->val.numeric);
@@ -562,7 +568,7 @@ static void wpn_signal(WPN_ARGS) {
 				ereport(NOTICE, errmsg("couldn't find pid of type '%s'", type));
 		}
 		raw_sig = simple_get_json_int(payload, "signal");
-		if (raw_sig)
+		if (raw_sig != -1)
 			sig = raw_sig;
 	}
 
