@@ -398,8 +398,10 @@ static char *simple_get_json_str(Jsonb *in, char *key) {
 	if (jsonval->type != jbvString)
 		ereport(ERROR, errmsg("expected string type"));
 
-	str = palloc(jsonval->val.string.len);
+	str = palloc(jsonval->val.string.len + 1);
 	strncpy(str, jsonval->val.string.val, jsonval->val.string.len);
+	str[jsonval->val.string.len] = '\0';
+
 	pfree(jsonkey);
 	pfree(jsonval);
 
