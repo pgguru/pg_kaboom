@@ -8,6 +8,7 @@
 - checksum invalidation
 - other random page corruption
 - delayed WAL application
+- backend memory allocation - specific sizes, and progressive allocation in different contexts until OOM
 - more!
 
 ## testing
