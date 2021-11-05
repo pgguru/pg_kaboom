@@ -36,6 +36,7 @@ static void wpn_break_archive(WPN_ARGS);
 static void wpn_fill_log(WPN_ARGS);
 static void wpn_fill_pgdata(WPN_ARGS);
 static void wpn_fill_pgwal(WPN_ARGS);
+static void wpn_mem(WPN_ARGS);
 static void wpn_restart(WPN_ARGS);
 static void wpn_segfault(WPN_ARGS);
 static void wpn_signal(WPN_ARGS);
@@ -51,6 +52,7 @@ Weapon weapons[] = {
 	{ "fill-log"		, &wpn_fill_log			, NULL, "use all the space in the log directory" },
 	{ "fill-pgdata"		, &wpn_fill_pgdata		, NULL, "use all the space in the pgdata directory" },
 	{ "fill-pgwal"		, &wpn_fill_pgwal		, NULL, "use all the space in the pg_wal directory" },
+	{ "mem"				, &wpn_mem				, NULL, "allocate memory in different contexts" },
 	{ "restart"			, &wpn_restart			, NULL, "force an immediate restart" },
 	{ "segfault"		, &wpn_segfault			, NULL, "segfault inside a backend process" },
 	{ "signal"			, &wpn_signal			, NULL, "send a signal to the postmaster (KILL by default)" },
@@ -588,6 +590,13 @@ static void wpn_xact_wrap(WPN_ARGS) {
 	force_settings_and_restart(settings, values);
 }
 
+static void wpn_mem(WPN_ARGS) {
+	char *size = payload ? simple_get_json_str(payload, "size") : "1GB";
+	char *context = payload ? simple_get_json_str(payload, "context") : "Current"; /* TODO */
+
+	int64 alloc_size = DatumGetInt64(DirectFunctionCall1(pg_size_bytes, CStringGetDatum(size)));
+	pfree(palloc(alloc_size));
+}
 
 /* SRF to return information about the available weapons */
 Datum pg_kaboom_arsenal(PG_FUNCTION_ARGS)
