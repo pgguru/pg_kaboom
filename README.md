@@ -1,6 +1,6 @@
 # pg_kaboom
 
-[![pg_kaboom logo](https://github.com/pgguru/pg_kaboom/raw/main/static/pg_kaboom_logo.png)](https://github.com/pgguru/pg_kaboom/)
+[![pg_kaboom logo](https://github.com/CrunchyData/pg_kaboom/raw/main/static/pg_kaboom_logo.png)](https://github.com/CrunchyData/pg_kaboom/)
 
 
 > Where's the kaboom?! There's supposed to be an Earth-shattering kaboom!
@@ -22,7 +22,7 @@ We require you to set a GUC variable `pg_kaboom.disclaimer` to a magic value in 
 ## Installation
 
 ```console
-$ git clone git@github.com:pgguru/pg_kaboom.git
+$ git clone git@github.com:CrunchyData/pg_kaboom.git
 $ cd pg_kaboom
 $ make PG_CONFIG=path/to/pg_config && make install PG_CONFIG=path/to/pg_config
 $ psql -c 'CREATE EXTENSION pg_kaboom' -U <user> -d <database>
@@ -75,3 +75,6 @@ You can also use the following "special" weapons:
 
 Contributions welcome!  Let's get creative in testing how PostgreSQL can recover/respond to various systems meddling!
 
+## Author
+
+David Christensen <david.christensen@crunchydata.com>, <david@pgguru.net>
