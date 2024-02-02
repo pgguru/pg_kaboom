@@ -1,0 +1,46 @@
+{
+   "name": "pg_kaboom",
+   "abstract": "Devious SQL-based SQL tools to crash your PostgreSQL server",
+   "description": "A Postgres data type for the Semantic Version format with support for btree and hash indexing.",
+   "version": "0.0.1",
+   "maintainer": [
+      "David Christensen <david.christensen@crunchydata.com>"
+   ],
+   "license": "apache_2_0",
+   "provides": {
+      "pg_kaboom": {
+         "abstract": "Blow things up in interesting and useful^W^W ways",
+         "file": "pg_kaboom.c",
+         "docfile": "README.md",
+         "version": "0.0.1"
+      }
+   },
+   "prereqs": {
+      "runtime": {
+         "requires": {
+            "PostgreSQL": "13.0.0"
+         }
+      }
+   },
+   "resources": {
+      "bugtracker": {
+         "web": "https://github.com/pgguru/pg_kaboom/issues/"
+      },
+      "repository": {
+         "url": "git://github.com/pgguru/pg_kaboom.git",
+         "web": "https://github.com/pgguru/pg_kaboom/",
+         "type": "git"
+      }
+   },
+   "generated_by": "David E. Wheeler",
+   "meta-spec": {
+      "version": "1.0.0",
+      "url": "https://pgxn.org/meta/spec.txt"
+   },
+   "tags": [
+      "kaboom",
+      "crash",
+      "testing",
+      "failover"
+   ]
+}
