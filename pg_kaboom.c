@@ -1,5 +1,5 @@
 /*
- Copyright 2022 Crunchy Data Solutions, Inc.
+ Copyright 2022-2024 Crunchy Data Solutions, Inc.
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -605,7 +605,7 @@ static void wpn_xact_wrap(WPN_ARGS) {
 
 static void wpn_mem(WPN_ARGS) {
 	char *size = payload ? simple_get_json_str(payload, "size") : "1GB";
-	char *context = payload ? simple_get_json_str(payload, "context") : "Current"; /* TODO */
+	//char *context = payload ? simple_get_json_str(payload, "context") : "Current"; /* TODO */
 
 	int64 alloc_size = DatumGetInt64(DirectFunctionCall1(pg_size_bytes, CStringGetDatum(size)));
 	pfree(palloc(alloc_size));
