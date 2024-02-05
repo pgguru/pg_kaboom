@@ -14,9 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     container: pgxn/pgxn-tools
     steps:
-      - run: env
-      - run: cat /etc/passwd
-      - run: cat /etc/sudoers
       - run: pg-start ${{ matrix.pg }}
       - uses: actions/checkout@v4
       - run: chown -R postgres:postgres .
