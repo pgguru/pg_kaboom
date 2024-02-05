@@ -18,17 +18,17 @@
    "prereqs": {
       "runtime": {
          "requires": {
-            "PostgreSQL": ">= 12.0.0"
+            "PostgreSQL": "12.0.0"
          }
       }
    },
    "resources": {
       "bugtracker": {
-         "web": "https://github.com/CrunchyData/pg_kaboom/issues/"
+         "web": "https://github.com/pgguru/pg_kaboom/issues/"
       },
       "repository": {
-         "url": "git://github.com/CrunchyData/pg_kaboom.git",
-         "web": "https://github.com/CrunchyData/pg_kaboom/",
+         "url": "git://github.com/pgguru/pg_kaboom.git",
+         "web": "https://github.com/pgguru/pg_kaboom/",
          "type": "git"
       }
    },
