@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: pgxn/pgxn-tools
-      options: -e AS_USER=pgtest
+      options: "-e AS_USER=pgtest"
     steps:
       - run: pg-start ${{ matrix.pg }}
       - uses: actions/checkout@v4
