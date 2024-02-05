@@ -605,7 +605,7 @@ static void wpn_xact_wrap(WPN_ARGS) {
 
 static void wpn_mem(WPN_ARGS) {
 	char *size = payload ? simple_get_json_str(payload, "size") : "1GB";
-	char *context = payload ? simple_get_json_str(payload, "context") : "Current"; /* TODO */
+	//char *context = payload ? simple_get_json_str(payload, "context") : "Current"; /* TODO */
 
 	int64 alloc_size = DatumGetInt64(DirectFunctionCall1(pg_size_bytes, CStringGetDatum(size)));
 	pfree(palloc(alloc_size));
