@@ -32,7 +32,7 @@
 #define PG_MAJOR_VERSION (PG_VERSION_NUM / 100)
 
 /* compatibility macros */
-#if PG_MAJOR_VERSION < 16
+#if PG_MAJOR_VERSION < 1600
 #define GET_BEENTRY(i) pgstat_fetch_stat_beentry(i);
 #else
 #define GET_BEENTRY(i) pgstat_get_beentry_by_backend_id(i);
