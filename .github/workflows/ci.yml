@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     container: pgxn/pgxn-tools
     steps:
+      - run: env
       - run: AS_USER=pg_test /usr/local/bin/entrypoint.sh 
       - run: pg-start ${{ matrix.pg }}
       - uses: actions/checkout@v4
