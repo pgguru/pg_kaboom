@@ -7,9 +7,7 @@ jobs:
   release:
     name: Release on PGXN
     runs-on: ubuntu-latest
-    container:
-      image: pgxn/pgxn-tools
-      options: "-e AS_USER=pgtest"
+    container: pgxn/pgxn-tools
     steps:
     - name: Check out the repo
       uses: actions/checkout@v4
