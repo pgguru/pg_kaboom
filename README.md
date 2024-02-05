@@ -1,7 +1,7 @@
 # pg_kaboom
 
-[![pg_kaboom logo](https://github.com/CrunchyData/pg_kaboom/raw/main/static/pg_kaboom_logo.png)](https://github.com/CrunchyData/pg_kaboom/)
-
+[![pg_kaboom logo](https://github.com/pgguru/pg_kaboom/raw/main/static/pg_kaboom_logo.png)](https://github.com/pgguru/pg_kaboom/)
+[![PGXN version](https://badge.fury.io/pg/pg_kaboom.svg)](https://badge.fury.io/pg/pg_kaboom)
 
 > Where's the kaboom?! There's supposed to be an Earth-shattering kaboom!
 

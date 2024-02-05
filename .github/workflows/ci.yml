@@ -1,0 +1,21 @@
+name: 🧪 Continuous Integration
+on:
+  push:
+    branches: ['*']
+  pull_request:
+  schedule:
+    - cron:  '0 12 5 * *' # Monthly at noon on the fifth
+jobs:
+  build:
+    strategy:
+      matrix:
+        pg: [16, 15, 14, 13, 12]
+    name: 🐘 PostgreSQL ${{ matrix.pg }}
+    runs-on: ubuntu-latest
+    container:
+      image: pgxn/pgxn-tools
+      options: -e AS_USER=pgtest
+    steps:
+      - run: pg-start ${{ matrix.pg }}
+      - uses: actions/checkout@v4
+      - run: pg-build-test
