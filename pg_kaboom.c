@@ -29,6 +29,16 @@
 
 #define PG_KABOOM_DISCLAIMER "I can afford to lose this data and server"
 
+#define PG_MAJOR_VERSION (PG_VERSION_NUM / 100)
+
+/* compatibility macros */
+#if PG_MAJOR_VERSION < 16
+#define GET_BEENTRY(i) pgstat_fetch_stat_beentry(i);
+#else
+#define GET_BEENTRY(i) pgstat_get_beentry_by_backend_id(i);
+#endif
+
+
 #define WPN_ARGS Jsonb *payload, char *arg
 
 /* function signature for the weapon implementation; "payload" is for weapon customization; "arg" is
@@ -489,8 +499,7 @@ static pid_t find_random_pid_of_type(char *type) {
 
 	/* do a linear wrapping search through the array starting at the random offset */
 	for (i = startIdx; i != startIdx || is_first; i = ((i + 1) >= num_procs ? 0 : i + 1), is_first = false) {
-		PgBackendStatus *st = pgstat_fetch_stat_beentry(i);
-
+		PgBackendStatus *st = GET_BEENTRY(i);
 		if (st && st->st_procpid > 0 && st->st_procpid != MyProcPid) {
 			/* check for correct backend type and exit loop if so */
 			if (st->st_backendType == backend_type) {
