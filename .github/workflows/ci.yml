@@ -14,7 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     container: pgxn/pgxn-tools
     steps:
-      - run: NO_CLUSTER=1 pg-start ${{ matrix.pg }}
+      - run: pg-start ${{ matrix.pg }}
+        env:
+          NO_CLUSTER: 1
       - uses: actions/checkout@v4
       - run: chown -R postgres:postgres .
       - run: gosu postgres pg-build-test
