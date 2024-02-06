@@ -15,8 +15,6 @@ jobs:
     container: pgxn/pgxn-tools
     steps:
       - run: pg-start ${{ matrix.pg }}
-        env:
-          NO_CLUSTER: 1
       - uses: actions/checkout@v4
       - run: chown -R postgres:postgres .
       - run: gosu postgres pg-build-test
